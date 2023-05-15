@@ -16,7 +16,7 @@ tf.config.run_functions_eagerly(True)
 
 
 api_key = 'PW1Cl5lFEP5JsGDoljgrvrddGA5PqPB4T6d0rTt8so0GR0RqpEhX4mfgoOhDtJMF'
-api_secret = 'sYgZNfn9nnJZ2jfa0aloUluayFW47T59TA2vC2qdF4Jmdz4AOL6F2Hla92M7zZGb'
+api_secret = 'secret-key'
 
 client = Client(api_key, api_secret, tld='us')
 
