@@ -190,7 +190,10 @@ def execute_trades(pair, current_price, predicted_price, balance):
 
 
 def main():
-    pairs = ['BTCUSDT', 'BNBUSDT']  # Modify to include the pairs you want to trade
+    pairs = ['BTCUSDT', 'BNBUSDT'] 
+    models = {}
+    iteration_count = 0
+    RECALIBRATE_AFTER_ITERATIONS = 10  
 
     while True:
         predicted_prices = {}
@@ -199,8 +202,13 @@ def main():
         for pair in pairs:
             try:
                 data, scaler, close_scaler = prepare_data(pair)
-                model = create_lstm_model((60, 1))
-                train_model(model, data)
+                # Recalibrate model after every N iterations
+                if iteration_count % RECALIBRATE_AFTER_ITERATIONS == 0 or pair not in models:
+                    model = create_lstm_model((60, 1))
+                    train_model(model, data)
+                    models[pair] = model
+                else:
+                    model = models[pair]
                 future_price = predict_future_prices(model, data, close_scaler)
                 predicted_prices[pair] = future_price
                 ticker = client.get_symbol_ticker(symbol=pair)
@@ -212,14 +220,7 @@ def main():
         max_profit_pair = max(predicted_prices, key=lambda x: (
                                                                       predicted_prices[x] - current_prices[x]) /
                                                               current_prices[x])
-        balances = {}
-        for pair in pairs:
-            asset_balance = client.get_asset_balance(asset=pair[:3])
-            if asset_balance is not None:
-                balances[pair] = float(asset_balance['free'])
-            else:
-                logging.error(f"Unable to fetch balance for {pair[:3]}. Please ensure the asset exists in your account.")
-                continue
+        balances = get_balances_for_pairs(pairs)
 
         if not balances:
             logging.error("No balances available for trading pairs. Stopping the bot.")
@@ -230,7 +231,6 @@ def main():
         if max_profit_pair == max_balance_pair:
             logging.info(f"Holding {max_balance_pair} as it has the highest predicted profit")
         else:
-            # Execute trades based on the current and predicted prices
             balance = float(client.get_asset_balance(asset=max_balance_pair[:3])['free'])
             logging.info(f"Current price of {max_profit_pair}: {current_prices[max_profit_pair]:.8f}")
             other_pair = [p for p in pairs if p != max_profit_pair][0]
@@ -238,9 +238,11 @@ def main():
             execute_trades(max_profit_pair, current_prices[max_profit_pair], predicted_prices[max_profit_pair], other_balance)
             logging.info(f"Predicted future price of {max_profit_pair}: {predicted_prices[max_profit_pair]:.8f}")
 
-        time.sleep(1800)  # Delay between iterations
-
+        time.sleep(300)  # Delay between iterations
+        iteration_count += 1  # Increment the iteration count
 
 if __name__ == '__main__':
+    main()
+
     main()
 
